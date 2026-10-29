@@ -1,0 +1,719 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SAKSI-JKN | Auditor Intelligence</title>
+<style>
+:root{
+  --navy:#142c3a;--teal:#087d77;--paper:#f5f7f8;
+  --line:#dfe7e9;--muted:#6a7d86;--text:#1e3641;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--text);
+  font-family:Inter,Arial,sans-serif}
+aside{position:fixed;left:0;top:0;bottom:0;width:245px;
+  background:var(--navy);padding:28px 18px;color:white}
+.brand{font-size:25px;font-weight:800;letter-spacing:.5px}
+.subtitle{font-size:11px;color:#a8bdc5;margin:6px 0 40px}
+nav button{display:block;width:100%;text-align:left;padding:14px;
+  margin:5px 0;background:transparent;color:#c7d6dc;
+  border:0;border-radius:9px;cursor:pointer;font-size:14px}
+nav button.active,nav button:hover{background:#254554;color:white}
+.sidefoot{position:absolute;bottom:25px;font-size:11px;
+  color:#a8bdc5;line-height:1.8}
+main{margin-left:245px;padding:31px;max-width:1580px}
+.top{display:flex;justify-content:space-between;gap:15px;
+  align-items:center;margin-bottom:26px;flex-wrap:wrap}
+h1{font-size:27px;margin:0 0 7px;letter-spacing:-.6px}
+h2{font-size:17px;margin:0 0 20px}
+p{line-height:1.6}
+.muted{color:var(--muted);font-size:13px}
+.pill{font-size:11px;border:1px solid #b9dad6;
+  background:#e7f2f0;color:#146a64;border-radius:20px;
+  padding:8px 12px;font-weight:700;white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}
+.card{background:white;border:1px solid var(--line);
+  border-radius:14px;padding:23px;margin-bottom:18px;
+  box-shadow:0 2px 9px #142c3a08}
+.kpi{font-size:30px;font-weight:800;margin:10px 0}
+.kpi-label{font-size:12px;color:var(--muted)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:17px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:13px 9px;text-align:left;
+  border-bottom:1px solid #e9eef0;font-size:13px}
+th{font-size:11px;color:#657781;background:#f7f9fa}
+tr:hover td{background:#f9fbfb}
+button{cursor:pointer;font:inherit}
+.primary{background:var(--teal);color:white;border:0;
+  border-radius:8px;padding:12px 16px;font-weight:700}
+.primary:hover{background:#056963}
+.outline{background:white;color:var(--navy);border:1px solid #cbd7db;
+  border-radius:8px;padding:11px 15px}
+.small{padding:7px 10px;font-size:12px}
+input,select,textarea{border:1px solid #cbd7db;
+  border-radius:8px;padding:11px;width:100%;margin:7px 0 16px;
+  font:inherit;font-size:13px;background:white}
+label{font-size:12px;font-weight:700}
+.num{font-variant-numeric:tabular-nums;font-weight:800}
+.bar{background:#e7eef0;height:9px;border-radius:10px;
+  margin:13px 0}
+.fill{background:var(--teal);height:100%;border-radius:10px}
+.risk{font-size:31px;font-weight:800;margin:10px 0}
+.note{border-left:3px solid #ad8651;background:#fffaf1;
+  padding:15px;font-size:12px;line-height:1.7}
+.details{display:grid;grid-template-columns:1fr 1fr;gap:17px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.bars{max-width:630px}
+.chartrow{display:grid;grid-template-columns:65px 1fr 85px;
+  gap:12px;align-items:center;margin:20px 0;font-size:13px}
+hr{border:0;border-top:1px solid var(--line);margin:22px 0}
+.clickable{color:#087d77;font-weight:800;cursor:pointer}
+.good{color:#16765a}.bad{color:#b24b42}
+@media(max-width:1100px){
+ .grid{grid-template-columns:repeat(2,1fr)}
+ .split,.details{grid-template-columns:1fr}
+}
+@media(max-width:700px){
+ aside{position:static;width:auto;padding:18px}
+ .subtitle,.sidefoot{display:none}
+ nav{display:flex;overflow-x:auto}
+ nav button{white-space:nowrap;width:auto}
+ main{margin-left:0;padding:18px}
+ .grid{grid-template-columns:1fr 1fr}
+ .card{padding:17px}
+ table{display:block;overflow-x:auto}
+}
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="brand">SAKSI-JKN</div>
+  <div class="subtitle">AUDITOR INTELLIGENCE PLATFORM</div>
+  <nav>
+    <button id="nav-home" onclick="navigate('home')">
+      Overview
+    </button>
+    <button id="nav-queue" onclick="navigate('queue')">
+      Audit Queue
+    </button>
+    <button id="nav-data" onclick="navigate('data')">
+      BPJS Analytics
+    </button>
+    <button id="nav-about" onclick="navigate('about')">
+      Model & Validation
+    </button>
+  </nav>
+  <div class="sidefoot">
+    Dual-Expert Architecture<br>
+    Bayesian Evidence Update<br>
+    Human-in-the-Loop
+  </div>
+</aside>
+
+<main>
+  <div class="top">
+    <div>
+      <h1 id="heading">Executive Overview</h1>
+      <div class="muted" id="subheading"></div>
+    </div>
+    <span class="pill">SYNTHETIC DEMO · LOCAL BROWSER</span>
+  </div>
+  <section id="content"></section>
+</main>
+
+<script>
+const KEY="saksi-jkn-web-v1";
+
+const initialCases=[
+ {id:"D-001",participant:"SIM-01",date:"2020-05-10",
+  dx:"Z09.8",cbg:"A-1",service:"followup",amount:200000},
+ {id:"D-002",participant:"SIM-01",date:"2020-05-10",
+  dx:"Z09.8",cbg:"A-1",service:"followup",amount:200000},
+ {id:"D-003",participant:"SIM-02",date:"2020-06-12",
+  dx:"J18.9",cbg:"D-4",service:"other",amount:850000},
+ {id:"D-004",participant:"SIM-02",date:"2020-06-12",
+  dx:"J18.9",cbg:"D-4",service:"other",amount:850000},
+ {id:"D-005",participant:"SIM-03",date:"2020-07-05",
+  dx:"Z49.1",cbg:"R-6",service:"dialysis",amount:1100000},
+ {id:"D-006",participant:"SIM-03",date:"2020-07-07",
+  dx:"Z49.1",cbg:"R-6",service:"dialysis",amount:1100000},
+ {id:"D-007",participant:"SIM-04",date:"2020-08-10",
+  dx:"Z50.1",cbg:"Q-2",service:"rehab",amount:350000}
+];
+
+const initialSummary={
+ total_observations:1762637,
+ duplicate_visit_ids:0,
+ same_day_diagnosis_groups:892,
+ same_day_cbg_groups:203,
+ repeat_groups_with_context_codes:null,
+ visit_years:{"2018":1012,"2019":975202,"2020":786423},
+ source:"Hasil audit FKRTL lokal yang dilaporkan pengguna"
+};
+
+function load(){
+ try{
+  const data=JSON.parse(localStorage.getItem(KEY));
+  if(data && Array.isArray(data.cases)) return data;
+ }catch(e){}
+ return {
+  cases:JSON.parse(JSON.stringify(initialCases)),
+  evidence:{},decisions:[],summary:initialSummary
+ };
+}
+
+let state=load();
+let view="home";
+let selected="D-003";
+let search="";
+let filter="all";
+
+const $=id=>document.getElementById(id);
+const fmt=n=>Number(n).toLocaleString("id-ID");
+const currency=n=>"Rp"+fmt(n);
+const escapeHTML=x=>String(x??"").replace(/[&<>"']/g,
+ c=>({"&":"&amp;","<":"&lt;",">":"&gt;",
+ '"':"&quot;","'":"&#39;"}[c]));
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+
+function save(){
+ try{localStorage.setItem(KEY,JSON.stringify(state))}
+ catch(e){alert("Browser tidak dapat menyimpan data lokal.")}
+}
+
+function analyze(c){
+ const others=state.cases.filter(x=>
+  x.id!==c.id && x.participant===c.participant
+ );
+ const sameDay=others.filter(x=>
+  x.date===c.date && x.dx===c.dx
+ ).length;
+ const sameCBG=others.filter(x=>
+  x.date===c.date && x.dx===c.dx && x.cbg===c.cbg
+ ).length;
+ const repeats=others.filter(x=>
+  x.dx===c.dx &&
+  Math.abs(new Date(x.date)-new Date(c.date))/86400000<=7
+ ).length;
+
+ const mitigation={
+  followup:0.13,dialysis:0.14,rehab:0.10,other:0
+ };
+
+ const prior=clamp(
+  0.08+Math.min(sameDay*.14,.28)
+  +Math.min(sameCBG*.18,.36)
+  +Math.min(repeats*.06,.12)
+  -(mitigation[c.service]||0),
+  .03,.85
+ );
+
+ const ev=state.evidence[c.id]||{};
+ const ratio={
+  received:{yes:.30,no:6,unknown:1},
+  medicine:{yes:.70,no:2.5,unknown:1},
+  docs:{yes:.65,no:2.2,unknown:1}
+ };
+
+ let lr=1;
+ let complete=0;
+ for(const field of Object.keys(ratio)){
+  const value=ev[field]||"unknown";
+  lr*=ratio[field][value]||1;
+  if(value!=="unknown")complete++;
+ }
+
+ const odds=prior/(1-prior);
+ const posterior=(odds*lr)/(1+odds*lr);
+
+ return {
+  prior,posterior,lr,complete,
+  sameDay,sameCBG,repeats,
+  priority:posterior>=.60?"Tinggi":
+    posterior>=.25?"Telaah":"Lebih rendah"
+ };
+}
+
+function pct(n){return (n*100).toFixed(1)+"%"}
+function priorityColor(x){
+ return x==="Tinggi"?"bad":x==="Lebih rendah"?"good":"";
+}
+
+function navigate(v){
+ view=v;
+ render();
+}
+
+function review(id){
+ selected=id;
+ view="case";
+ render();
+}
+
+function allReports(){
+ return state.cases.map(c=>({c,r:analyze(c)}))
+ .sort((a,b)=>b.r.posterior-a.r.posterior);
+}
+
+function rows(items){
+ return items.map(({c,r})=>`
+ <tr>
+  <td><span class="clickable"
+      onclick="review('${c.id}')">${escapeHTML(c.id)}</span></td>
+  <td>${escapeHTML(c.participant)}</td>
+  <td>${escapeHTML(c.dx)}</td>
+  <td>${escapeHTML(c.service)}</td>
+  <td>${pct(r.prior)}</td>
+  <td class="num">${pct(r.posterior)}</td>
+  <td class="${priorityColor(r.priority)}">
+    ${r.priority}</td>
+  <td><button class="outline small"
+      onclick="review('${c.id}')">Tinjau</button></td>
+ </tr>`).join("");
+}
+
+function queueTable(items){
+ return `<div style="overflow-x:auto"><table>
+  <thead><tr>
+    <th>ID</th><th>Peserta simulasi</th><th>ICD-10</th>
+    <th>Layanan</th><th>Graph</th><th>Bayesian</th>
+    <th>Prioritas</th><th></th>
+  </tr></thead>
+  <tbody>${rows(items)}</tbody>
+ </table></div>`;
+}
+
+function home(){
+ const items=allReports();
+ const high=items.filter(x=>x.r.priority==="Tinggi").length;
+ return `
+ <div class="grid">
+  <div class="card"><div class="kpi-label">Kasus sintetis</div>
+   <div class="kpi">${state.cases.length}</div>
+   <div class="muted">Tersimpan di browser</div></div>
+  <div class="card"><div class="kpi-label">Prioritas tinggi</div>
+   <div class="kpi">${high}</div>
+   <div class="muted">Skor ilustratif</div></div>
+  <div class="card"><div class="kpi-label">Observasi FKRTL BPJS</div>
+   <div class="kpi">${fmt(state.summary.total_observations)}</div>
+   <div class="muted">Statistik agregat</div></div>
+  <div class="card"><div class="kpi-label">Keputusan auditor demo</div>
+   <div class="kpi">${state.decisions.length}</div>
+   <div class="muted">Riwayat tersimpan lokal</div></div>
+ </div>
+ <div class="card">
+  <div class="row" style="justify-content:space-between">
+   <h2>Prioritas Audit</h2>
+   <button class="outline small"
+     onclick="navigate('queue')">Semua kasus</button>
+  </div>
+  ${queueTable(items.slice(0,7))}
+ </div>
+ <div class="split">
+  <div class="card">
+   <h2>Dual-Expert Decision Flow</h2>
+   <p><b>1.</b> Graph Expert — pola relasional dan temporal</p>
+   <p><b>2.</b> Evidence Expert — konfirmasi dan dokumen</p>
+   <p><b>3.</b> Bayesian Update — pembaruan indeks risiko</p>
+   <p><b>4.</b> Auditor — keputusan akhir dan audit trail</p>
+  </div>
+  <div class="card">
+   <h2>Perlindungan terhadap False Alert</h2>
+   <p>Kunjungan tindak lanjut, dialisis, dan rehabilitasi
+   memperoleh penyesuaian konteks dalam aturan demonstrasi.</p>
+   <p class="muted">Penyesuaian ini belum dikalibrasi
+   dan tidak membuktikan suatu pengulangan sah atau fraud.</p>
+  </div>
+ </div>`;
+}
+
+function queue(){
+ const reports=allReports().filter(({c,r})=>{
+  const match=(c.id+" "+c.participant+" "+c.dx)
+   .toLowerCase().includes(search.toLowerCase());
+  return match && (filter==="all"||r.priority===filter);
+ });
+
+ return `
+ <div class="card">
+  <div class="row" style="justify-content:space-between">
+   <div><h2>Antrean Penelaahan</h2>
+    <p class="muted">Urutan berdasarkan skor demonstrasi,
+    bukan keputusan fraud.</p></div>
+   <button class="primary" onclick="navigate('new')">
+     + Tambah Kasus</button>
+  </div>
+  <div class="split">
+   <div><label>Pencarian</label>
+    <input id="qsearch" placeholder="ID, peserta, diagnosis"
+     value="${escapeHTML(search)}"
+     oninput="search=this.value;refreshRows()"></div>
+   <div><label>Filter prioritas</label>
+    <select id="qfilter" onchange="filter=this.value;refreshRows()">
+     ${["all","Tinggi","Telaah","Lebih rendah"]
+       .map(v=>`<option value="${v}"
+       ${filter===v?"selected":""}>${v}</option>`).join("")}
+    </select></div>
+  </div>
+  <div id="qrows">${queueTable(reports)}</div>
+ </div>`;
+}
+
+function refreshRows(){
+ const items=allReports().filter(({c,r})=>
+  (c.id+" "+c.participant+" "+c.dx)
+  .toLowerCase().includes(search.toLowerCase()) &&
+  (filter==="all"||r.priority===filter)
+ );
+ $("qrows").innerHTML=queueTable(items);
+}
+
+function optionSet(value){
+ return [
+  ["unknown","Belum diketahui"],
+  ["yes","Ya / sesuai"],
+  ["no","Tidak / tidak sesuai"]
+ ].map(([v,name])=>`
+  <option value="${v}" ${value===v?"selected":""}>
+  ${name}</option>`).join("");
+}
+
+function detail(){
+ const c=state.cases.find(x=>x.id===selected);
+ if(!c)return `<div class="card">Kasus tidak ditemukan.</div>`;
+ const r=analyze(c);
+ const ev=state.evidence[c.id]||{};
+ const logs=state.decisions.filter(x=>x.caseId===c.id);
+
+ return `
+ <p><button class="outline small"
+   onclick="navigate('queue')">Kembali ke antrean</button></p>
+ <div class="card">
+  <div class="row" style="justify-content:space-between">
+   <div><h2>Case Review — ${escapeHTML(c.id)}</h2>
+    <div class="muted">${escapeHTML(c.participant)}
+    · ${escapeHTML(c.date)}
+    · ${escapeHTML(c.dx)}
+    · ${escapeHTML(c.cbg)}</div></div>
+   <div class="num">${currency(c.amount)}</div>
+  </div>
+ </div>
+ <div class="details">
+  <div class="card">
+   <h2>01 — Graph Expert</h2>
+   <div class="muted">Indeks awal, aturan transparan</div>
+   <div class="risk">${pct(r.prior)}</div>
+   <div class="bar"><div class="fill"
+      style="width:${pct(r.prior)}"></div></div>
+   <hr>
+   <p>Peserta–hari–diagnosis sama:
+    <b>${r.sameDay}</b></p>
+   <p>INA-CBG sama pada hari yang sama:
+    <b>${r.sameCBG}</b></p>
+   <p>Diagnosis berulang dalam ±7 hari:
+    <b>${r.repeats}</b></p>
+   <p class="muted">Kategori layanan:
+    ${escapeHTML(c.service)}</p>
+  </div>
+  <div class="card">
+   <h2>02 — Bayesian Risk Update</h2>
+   <div class="muted">Indeks setelah memasukkan bukti</div>
+   <div class="risk">${pct(r.posterior)}</div>
+   <div class="bar"><div class="fill"
+      style="width:${pct(r.posterior)}"></div></div>
+   <p><span class="${priorityColor(r.priority)}">
+    <b>${r.priority}</b></span> · LR ${r.lr.toFixed(3)}</p>
+   <p>Bukti terisi: <b>${r.complete}/3</b></p>
+   <p>Ketidakpastian:
+    <b>${r.complete===0?"Tinggi":
+      r.complete<3?"Sedang":"Lebih rendah (indikatif)"}</b></p>
+   <p class="muted">Indeks ini bukan probabilitas fraud
+    yang tervalidasi secara empiris.</p>
+  </div>
+ </div>
+ <div class="details">
+  <div class="card">
+   <h2>03 — Evidence Expert</h2>
+   <form onsubmit="saveEvidence(event)">
+    <label>Apakah peserta menerima pelayanan?</label>
+    <select name="received">${optionSet(ev.received||"unknown")}</select>
+    <label>Apakah obat/tindakan yang tercatat sesuai?</label>
+    <select name="medicine">${optionSet(ev.medicine||"unknown")}</select>
+    <label>Apakah dokumentasi konsisten?</label>
+    <select name="docs">${optionSet(ev.docs||"unknown")}</select>
+    <button class="primary" type="submit">Perbarui Bayesian Score</button>
+   </form>
+  </div>
+  <div class="card">
+   <h2>04 — Human-in-the-Loop</h2>
+   <form onsubmit="saveDecision(event)">
+    <label>Keputusan auditor</label>
+    <select name="action">
+     <option>Verifikasi lanjutan</option>
+     <option>Klarifikasi peserta</option>
+     <option>Verifikasi dokumen faskes</option>
+     <option>Tidak ada indikasi lanjutan</option>
+    </select>
+    <label>Alasan keputusan</label>
+    <textarea name="note" rows="5" required
+     placeholder="Tuliskan pertimbangan auditor..."></textarea>
+    <button class="primary" type="submit">Simpan Keputusan</button>
+   </form>
+  </div>
+ </div>
+ <div class="card">
+  <h2>Audit Trail</h2>
+  ${logs.length?logs.map(l=>`
+   <p><b>${escapeHTML(l.action)}</b>
+   <span class="muted">${escapeHTML(l.date)}</span><br>
+   ${escapeHTML(l.note)}</p><hr>`).join(""):
+   `<p class="muted">Belum ada keputusan auditor.</p>`}
+ </div>`;
+}
+
+function saveEvidence(event){
+ event.preventDefault();
+ const f=new FormData(event.currentTarget);
+ state.evidence[selected]={
+  received:f.get("received"),
+  medicine:f.get("medicine"),
+  docs:f.get("docs")
+ };
+ save();render();
+}
+
+function saveDecision(event){
+ event.preventDefault();
+ const f=new FormData(event.currentTarget);
+ const note=String(f.get("note")||"").trim();
+ if(!note)return;
+ state.decisions.unshift({
+  caseId:selected,
+  action:String(f.get("action")),
+  note:note.slice(0,2000),
+  date:new Date().toLocaleString("id-ID")
+ });
+ save();render();
+}
+
+function newCase(){
+ return `<div class="card">
+  <h2>Tambah Kasus Sintetis</h2>
+  <p class="muted">Gunakan data simulasi saja,
+  jangan memasukkan identitas peserta sungguhan.</p>
+  <form onsubmit="addCase(event)">
+  <div class="split">
+   <div>
+    <label>Alias peserta</label>
+    <input name="participant" value="SIM-05" required maxlength="30">
+    <label>Tanggal kunjungan</label>
+    <input type="date" name="date" value="2020-09-10" required>
+    <label>Diagnosis ICD-10</label>
+    <input name="dx" value="Z09.8" required maxlength="20">
+   </div>
+   <div>
+    <label>INA-CBG</label>
+    <input name="cbg" value="A-1" required maxlength="20">
+    <label>Jenis layanan</label>
+    <select name="service">
+     <option value="other">Lainnya</option>
+     <option value="followup">Follow-up</option>
+     <option value="dialysis">Dialisis</option>
+     <option value="rehab">Rehabilitasi</option>
+    </select>
+    <label>Biaya tagih sintetis</label>
+    <input type="number" name="amount" value="250000" min="0"
+    required>
+   </div>
+  </div>
+  <button class="primary" type="submit">Simpan Kasus</button>
+  </form></div>`;
+}
+
+function addCase(event){
+ event.preventDefault();
+ const f=new FormData(event.currentTarget);
+ const id="D-"+String(state.cases.length+1).padStart(3,"0");
+ state.cases.push({
+  id,
+  participant:String(f.get("participant")).trim(),
+  date:String(f.get("date")),
+  dx:String(f.get("dx")).trim().toUpperCase(),
+  cbg:String(f.get("cbg")).trim().toUpperCase(),
+  service:String(f.get("service")),
+  amount:Number(f.get("amount"))
+ });
+ save();review(id);
+}
+
+function dataView(){
+ const s=state.summary;
+ const years=s.visit_years||{};
+ const max=Math.max(1,...Object.values(years).map(Number));
+
+ return `
+ <div class="grid">
+  <div class="card"><div class="kpi-label">FKRTL</div>
+   <div class="kpi">${fmt(s.total_observations)}</div></div>
+  <div class="card"><div class="kpi-label">ID duplikat</div>
+   <div class="kpi">${fmt(s.duplicate_visit_ids)}</div></div>
+  <div class="card"><div class="kpi-label">Kelompok berulang</div>
+   <div class="kpi">${fmt(s.same_day_diagnosis_groups)}</div></div>
+  <div class="card"><div class="kpi-label">INA-CBG identik</div>
+   <div class="kpi">${fmt(s.same_day_cbg_groups)}</div></div>
+ </div>
+ <div class="card">
+  <h2>Distribusi Tahun Kunjungan</h2>
+  <div class="bars">
+  ${Object.entries(years).map(([year,n])=>`
+   <div class="chartrow">
+    <b>${escapeHTML(year)}</b>
+    <div class="bar"><div class="fill"
+       style="width:${100*Number(n)/max}%"></div></div>
+    <span class="num">${fmt(n)}</span>
+   </div>`).join("")}
+  </div>
+ </div>
+ <div class="card">
+  <h2>Impor Laporan Agregat BPJS</h2>
+  <p>Jika Anda sudah membuat <code>bpjs_summary.json</code>
+  menggunakan pipeline Python sebelumnya, pilih file tersebut.
+  Dashboard akan memperbarui angka analisis.</p>
+  <input type="file" accept=".json,application/json"
+   onchange="importSummary(event)">
+  <p class="muted">Sumber saat ini:
+   ${escapeHTML(s.source||"Pipeline BPJS lokal")}</p>
+  <div class="note">Hanya impor file JSON ringkasan agregat.
+   Jangan unggah file .dta atau data peserta asli ke hosting publik.
+   Pengulangan kunjungan bukan bukti fraud.</div>
+ </div>`;
+}
+
+async function importSummary(event){
+ const file=event.target.files[0];
+ if(!file)return;
+ try{
+  const raw=JSON.parse(await file.text());
+  const keys=[
+   "total_observations","duplicate_visit_ids",
+   "same_day_diagnosis_groups","same_day_cbg_groups",
+   "repeat_groups_with_context_codes"
+  ];
+  const result={...state.summary};
+  for(const key of keys){
+   if(raw[key]!==undefined && raw[key]!==null){
+    const n=Number(raw[key]);
+    if(!Number.isFinite(n)||n<0)throw Error("Nilai tidak valid");
+    result[key]=n;
+   }
+  }
+  if(raw.visit_years && typeof raw.visit_years==="object"){
+   result.visit_years={};
+   for(const [year,n] of Object.entries(raw.visit_years)){
+    if(/^\d{4}$/.test(year)&&Number.isFinite(Number(n)))
+     result.visit_years[year]=Number(n);
+   }
+  }
+  result.source="bpjs_summary.json diimpor secara lokal";
+  state.summary=result;
+  save();render();
+  alert("Ringkasan BPJS berhasil diperbarui.");
+ }catch(err){
+  alert("File JSON tidak sesuai format ringkasan BPJS.");
+ }
+}
+
+function about(){
+ return `<div class="card">
+  <h2>Status Validasi Model</h2>
+  <table>
+   <tr><th>Komponen</th><th>Status</th></tr>
+   <tr><td>Graph Expert</td>
+     <td>Aturan ilustratif, belum model terlatih</td></tr>
+   <tr><td>Evidence Expert</td>
+     <td>Konfirmasi sintetis</td></tr>
+   <tr><td>Bayesian Update</td>
+     <td>Rumus odds berfungsi, LR asumsi</td></tr>
+   <tr><td>Human-in-the-Loop</td>
+     <td>Keputusan tersimpan di browser</td></tr>
+   <tr><td>Dataset BPJS</td>
+     <td>Analisis agregat, tanpa label fraud</td></tr>
+   <tr><td>Validasi fraud nyata</td>
+     <td>Belum dilakukan</td></tr>
+  </table>
+ </div>
+ <div class="card">
+  <h2>Ekspor dan Reset Demo</h2>
+  <div class="row">
+   <button class="primary" onclick="exportAudit()">
+     Ekspor Audit Trail JSON</button>
+   <button class="outline" onclick="resetDemo()">
+     Reset Kasus Demo</button>
+  </div>
+  <p class="muted">Penyimpanan menggunakan localStorage.
+  Keputusan tidak tersinkron antarperangkat.</p>
+ </div>
+ <div class="note">
+  Website ini mendemonstrasikan mekanisme keputusan berbantuan
+  analitik. Skor dan likelihood ratio belum dikalibrasi
+  sehingga tidak boleh digunakan untuk menetapkan fraud,
+  sanksi, atau keputusan audit nyata.
+ </div>`;
+}
+
+function exportAudit(){
+ const output={
+  exported_at:new Date().toISOString(),
+  mode:"synthetic demonstration",
+  decisions:state.decisions
+ };
+ const blob=new Blob([JSON.stringify(output,null,2)],
+  {type:"application/json"});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+ a.href=url;a.download="saksi-jkn-audit-demo.json";
+ a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function resetDemo(){
+ if(!confirm("Reset seluruh kasus dan keputusan demo?"))return;
+ state.cases=JSON.parse(JSON.stringify(initialCases));
+ state.evidence={};
+ state.decisions=[];
+ save();navigate("home");
+}
+
+function render(){
+ const headings={
+  home:["Executive Overview","Dual-Expert Audit Decision Support"],
+  queue:["Audit Queue","Prioritisasi kasus dan penelaahan"],
+  case:["Case Investigation","Graph Expert + Evidence Expert"],
+  new:["New Synthetic Case","Simulasi pengajuan klaim"],
+  data:["BPJS Data Analytics","Validasi pola administratif lokal"],
+  about:["Model & Validation","Transparansi asumsi dan keterbatasan"]
+ };
+ const h=headings[view]||headings.home;
+ $("heading").textContent=h[0];
+ $("subheading").textContent=h[1];
+ document.querySelectorAll("nav button").forEach(b=>
+  b.classList.remove("active")
+ );
+ const navId=view==="case"||view==="new"?"queue":view;
+ const active=$("nav-"+navId);
+ if(active)active.classList.add("active");
+
+ const pages={
+  home,queue,case:detail,new:newCase,
+  data:dataView,about
+ };
+ $("content").innerHTML=(pages[view]||home)();
+}
+
+render();
+</script>
+</body>
+</html>
