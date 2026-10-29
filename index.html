@@ -1131,6 +1131,491 @@ render = function() {
 
 /* END SAKSI-JKN V2 */
 
+/* ==========================================
+   SAKSI-JKN v3
+   Synthetic-trained Graph Expert ML
+   Human-in-the-loop research demonstration
+   ========================================== */
+
+const saksiAnalyzeBeforeML = analyze;
+
+const saksiML = (() => {
+  // Seeded generator for reproducibility
+  function random(seed) {
+    let s = seed >>> 0;
+    return () => {
+      s = (Math.imul(1664525, s) + 1013904223) >>> 0;
+      return s / 4294967296;
+    };
+  }
+
+  // Each recipe: service, same-day, same-CBG,
+  // exact amount, repeat 7d, synthetic label.
+  // Labels are assumptions, NOT verified fraud.
+  const recipes = [
+    ["other", 0,0,0,0,0],
+    ["followup",1,1,1,1,0],
+    ["dialysis",0,0,0,1,0],
+    ["rehab",1,1,0,2,0],
+    ["other",1,1,1,1,0],
+    ["other",1,0,0,1,0],
+    ["other",1,1,1,1,1],
+    ["other",2,2,2,3,1],
+    ["other",2,2,1,2,1],
+    ["followup",2,2,2,3,1],
+    ["other",0,0,0,0,1]
+  ];
+
+  function generate(n, seed) {
+    const r = random(seed);
+    const result = [];
+
+    for (let i = 0; i < n; i++) {
+      const t = recipes[
+        Math.floor(r() * recipes.length)
+      ];
+
+      const jitter = (value, max) =>
+        Math.max(0, Math.min(max,
+          value + (r() < .15
+            ? (r() < .5 ? -1 : 1)
+            : 0)
+        ));
+
+      const sameDay = jitter(t[1], 3);
+      const sameCBG = Math.min(
+        jitter(t[2], 3), sameDay
+      );
+      const exactAmount = Math.min(
+        jitter(t[3], 3), sameCBG
+      );
+      const repeats = Math.max(
+        jitter(t[4], 4), sameDay
+      );
+
+      result.push({
+        service: t[0],
+        sameDay,
+        sameCBG,
+        exactAmount,
+        repeats,
+        label: t[5]
+      });
+    }
+
+    return result;
+  }
+
+  function features(o) {
+    const d = Math.min(o.sameDay / 3, 1);
+    const c = Math.min(o.sameCBG / 3, 1);
+    const a = Math.min(o.exactAmount / 3, 1);
+    const r = Math.min(o.repeats / 4, 1);
+    const routine = o.service !== "other" ? 1 : 0;
+
+    return [
+      1, d, c, a, r,
+      +(o.service === "followup"),
+      +(o.service === "dialysis"),
+      +(o.service === "rehab"),
+      d * routine,
+      c * routine,
+      a * routine,
+      c * (1 - routine),
+      a * (1 - routine)
+    ];
+  }
+
+  function sigmoid(z) {
+    const safe = Math.max(-25, Math.min(25, z));
+    return 1 / (1 + Math.exp(-safe));
+  }
+
+  function fit(samples) {
+    const dim = features(samples[0]).length;
+    const weights = Array(dim).fill(0);
+
+    // Batch gradient descent + L2 regularization
+    for (let epoch = 0; epoch < 360; epoch++) {
+      const grad = Array(dim).fill(0);
+
+      for (const item of samples) {
+        const x = features(item);
+        let z = 0;
+
+        for (let j = 0; j < dim; j++) {
+          z += x[j] * weights[j];
+        }
+
+        const error = sigmoid(z) - item.label;
+
+        for (let j = 0; j < dim; j++) {
+          grad[j] += error * x[j];
+        }
+      }
+
+      const lr = .42 / Math.sqrt(1 + epoch / 70);
+
+      for (let j = 0; j < dim; j++) {
+        weights[j] -= lr * (
+          grad[j] / samples.length +
+          .015 * weights[j]
+        );
+      }
+    }
+    return weights;
+  }
+
+  const training = generate(720, 31415);
+  const holdout = generate(240, 98765);
+  const weights = fit(training);
+
+  function rawScore(o) {
+    const x = features(o);
+    let z = 0;
+
+    for (let j = 0; j < x.length; j++) {
+      z += x[j] * weights[j];
+    }
+
+    return Math.max(.03, Math.min(.85, sigmoid(z)));
+  }
+
+  function score(o, applyGuardrails = true) {
+    const raw = rawScore(o);
+    let result = raw;
+    let guardrail = "None";
+
+    const routine = o.service !== "other";
+
+    // Conservative rule for routine services:
+    // prevents routine repetition alone from
+    // generating a high audit score.
+    if (
+      applyGuardrails &&
+      routine &&
+      o.sameDay <= 1 &&
+      o.sameCBG <= 1 &&
+      o.repeats <= 2
+    ) {
+      result = Math.min(result, .12);
+      guardrail = "Routine-service context";
+    }
+
+    // No relational anomaly does not prove safety.
+    // This cap explicitly exposes the graph blind spot.
+    if (
+      applyGuardrails &&
+      o.sameDay === 0 &&
+      o.sameCBG === 0 &&
+      o.exactAmount === 0 &&
+      o.repeats === 0
+    ) {
+      result = Math.min(result, .12);
+      guardrail = "No graph signal";
+    }
+
+    return {
+      raw,
+      prior: result,
+      guardrail
+    };
+  }
+
+  function evaluate() {
+    const scored = holdout.map(o => ({
+      ...o,
+      ...score(o)
+    }));
+
+    const sorted = [...scored].sort(
+      (a,b) => b.prior - a.prior
+    );
+
+    const topN = Math.ceil(scored.length * .10);
+    const top = sorted.slice(0, topN);
+
+    const positives = scored.filter(
+      x => x.label === 1
+    ).length;
+
+    const hits = top.filter(
+      x => x.label === 1
+    ).length;
+
+    const hardNegatives = scored.filter(x =>
+      x.label === 0 &&
+      x.service !== "other" &&
+      (x.sameDay > 0 || x.repeats > 0)
+    );
+
+    return {
+      nTrain: training.length,
+      nTest: scored.length,
+      positives,
+      topN,
+      precision10: hits / topN,
+      recall10: positives ? hits / positives : 0,
+      hardNegatives: hardNegatives.length,
+      hardNegRaw: hardNegatives.filter(
+        x => x.raw >= .25
+      ).length,
+      hardNegGuarded: hardNegatives.filter(
+        x => x.prior >= .25
+      ).length
+    };
+  }
+
+  return {
+    version: "Synthetic Logistic Graph v3",
+    score,
+    evaluate,
+    weights
+  };
+})();
+
+// Replace Graph Expert scoring.
+// Preserve Evidence Expert and Bayesian odds update.
+analyze = function(c) {
+  const old = saksiAnalyzeBeforeML(c);
+
+  const others = state.cases.filter(x =>
+    x.id !== c.id &&
+    x.participant === c.participant
+  );
+
+  const exactAmount = others.filter(x =>
+    x.date === c.date &&
+    x.dx === c.dx &&
+    x.cbg === c.cbg &&
+    Number(x.amount) === Number(c.amount)
+  ).length;
+
+  const graph = saksiML.score({
+    service: c.service,
+    sameDay: old.sameDay,
+    sameCBG: old.sameCBG,
+    repeats: old.repeats,
+    exactAmount
+  });
+
+  const ev = state.evidence[c.id] || {};
+
+  // Synthetic assumptions, not empirical LRs.
+  const likelihoods = {
+    received: {
+      yes:.30, no:6, unknown:1
+    },
+    medicine: {
+      yes:.70, no:2.5, unknown:1,
+      not_applicable:1
+    },
+    docs: {
+      yes:.65, no:2.2, unknown:1,
+      not_applicable:1
+    }
+  };
+
+  let lr = 1;
+  let complete = 0;
+
+  for (const field of Object.keys(likelihoods)) {
+    const value = ev[field] || "unknown";
+    lr *= likelihoods[field][value] ?? 1;
+
+    if (value === "yes" || value === "no") {
+      complete++;
+    }
+  }
+
+  const prior = graph.prior;
+  const priorOdds = prior / (1 - prior);
+  const posteriorOdds = priorOdds * lr;
+  const posterior = posteriorOdds / (1 + posteriorOdds);
+
+  const priority = posterior >= .60
+    ? "Tinggi"
+    : posterior >= .25
+      ? "Telaah"
+      : "Lebih rendah";
+
+  return {
+    ...old,
+    prior,
+    posterior,
+    lr,
+    complete,
+    priority,
+    modelVersion: saksiML.version,
+    rawMLScore: graph.raw,
+    guardrail: graph.guardrail,
+    exactAmountMatches: exactAmount
+  };
+};
+
+// Additional model explanation in case review
+const saksiDetailBeforeML = detail;
+
+detail = function() {
+  let markup = saksiDetailBeforeML();
+  const c = state.cases.find(x => x.id === selected);
+
+  if (!c) return markup;
+
+  const r = analyze(c);
+
+  markup = markup.replace(
+    "Graph Expert v2",
+    "Graph Expert ML v3"
+  );
+
+  markup = markup.replace(
+    "Graph Expert</h2>",
+    "Graph Expert ML v3</h2>"
+  );
+
+  const explanation = `
+    <div class="note" style="margin-bottom:17px">
+      <b>Model:</b> ${escapeHTML(r.modelVersion)}<br>
+      <b>Raw ML index:</b> ${pct(r.rawMLScore)}<br>
+      <b>Guardrail:</b> ${escapeHTML(r.guardrail)}<br>
+      <b>Final Graph index:</b> ${pct(r.prior)}<br>
+      <b>Exact amount matches:</b>
+      ${r.exactAmountMatches}<br>
+      Model dilatih pada skenario sintetis.
+      Bukan probabilitas fraud terkalibrasi.
+    </div>
+  `;
+
+  return markup.replace(
+    "<h2>03 — Evidence Expert</h2>",
+    explanation + "<h2>03 — Evidence Expert</h2>"
+  );
+};
+
+// Validation view for the trained synthetic model
+function saksiMLLab() {
+  const m = saksiML.evaluate();
+
+  return `
+    <div class="grid">
+      <div class="card">
+        <div class="kpi-label">Training sintetis</div>
+        <div class="kpi">${m.nTrain}</div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">Holdout sintetis</div>
+        <div class="kpi">${m.nTest}</div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">Precision@10%</div>
+        <div class="kpi">${pct(m.precision10)}</div>
+      </div>
+      <div class="card">
+        <div class="kpi-label">Recall@10%</div>
+        <div class="kpi">${pct(m.recall10)}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Routine Repeat Stress Test</h2>
+      <p>
+        Skenario rutin yang diasumsikan sah:
+        <b>${m.hardNegatives}</b>
+      </p>
+      <p>
+        Alert tanpa guardrail:
+        <b>${m.hardNegRaw}</b>
+      </p>
+      <p>
+        Alert setelah guardrail:
+        <b>${m.hardNegGuarded}</b>
+      </p>
+      <p class="muted">
+        Alert dihitung pada ambang 25%.
+        Skenario berasal dari generator sintetis,
+        bukan kasus BPJS berlabel.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Arsitektur Pembelajaran</h2>
+      <table>
+        <tr><th>Elemen</th><th>Implementasi</th></tr>
+        <tr><td>Model</td>
+          <td>Logistic regression + L2</td></tr>
+        <tr><td>Fitur</td>
+          <td>Pengulangan temporal, diagnosis,
+          INA-CBG, biaya identik, kategori layanan</td></tr>
+        <tr><td>Training</td>
+          <td>720 skenario sintetis</td></tr>
+        <tr><td>Testing</td>
+          <td>240 skenario sintetis terpisah</td></tr>
+        <tr><td>Seed</td>
+          <td>Deterministik, hasil dapat direproduksi</td></tr>
+        <tr><td>Evidence Update</td>
+          <td>Bayesian odds, LR asumsi</td></tr>
+        <tr><td>Keputusan</td>
+          <td>Human-in-the-Loop</td></tr>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>Interpretasi ilmiah:</b>
+      Training dan testing berasal dari generator
+      skenario yang sama dengan seed berbeda.
+      Karena itu, hasil holdout hanya menguji
+      generalisasi dalam simulasi, bukan
+      kemampuan mendeteksi fraud di dunia nyata.
+
+      Model juga tidak dapat memastikan phantom
+      billing bila tidak ada sinyal relasional.
+      Konfirmasi bukti tetap dibutuhkan.
+
+      Dataset BPJS asli belum digunakan untuk
+      fitting model ini dan belum menyediakan
+      label fraud terverifikasi.
+    </div>
+  `;
+}
+
+// Add ML Lab to sidebar
+if (!document.getElementById("nav-ml")) {
+  const anchor = document.getElementById("nav-about");
+
+  if (anchor) {
+    anchor.insertAdjacentHTML(
+      "beforebegin",
+      `<button id="nav-ml"
+       onclick="navigate('ml')">ML Laboratory</button>`
+    );
+  }
+}
+
+// Preserve existing navigation and other views
+const saksiRenderBeforeML = render;
+
+render = function() {
+  if (view !== "ml") {
+    saksiRenderBeforeML();
+    return;
+  }
+
+  $("heading").textContent = "ML Laboratory";
+  $("subheading").textContent =
+    "Synthetic-trained Graph Expert & holdout evaluation";
+
+  document.querySelectorAll("nav button")
+    .forEach(button => button.classList.remove("active"));
+
+  const active = document.getElementById("nav-ml");
+  if (active) active.classList.add("active");
+
+  $("content").innerHTML = saksiMLLab();
+};
+
+/* END SAKSI-JKN ML V3 */
+
 render();
 </script>
 </body>
