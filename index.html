@@ -713,6 +713,424 @@ function render(){
  $("content").innerHTML=(pages[view]||home)();
 }
 
+/* ==================================================
+   SAKSI-JKN V2
+   Clinical Repeat Guardrails + Validation Studio
+   Mode: Synthetic research demonstrator
+   ================================================== */
+
+const saksiV1Analyze = analyze;
+
+// Graph Expert v2: transparent graph-signal scoring
+analyze = function(c) {
+  const previous = saksiV1Analyze(c);
+
+  const connected = state.cases.filter(x =>
+    x.id !== c.id &&
+    x.participant === c.participant
+  );
+
+  const exactAmountMatches = connected.filter(x =>
+    x.date === c.date &&
+    x.dx === c.dx &&
+    x.cbg === c.cbg &&
+    Number(x.amount) === Number(c.amount)
+  ).length;
+
+  const clinicalFactors = {
+    other: 1.00,
+    followup: 0.18,
+    dialysis: 0.20,
+    rehab: 0.30
+  };
+
+  const graphRaw =
+    0.08 +
+    Math.min(previous.sameDay * 0.10, 0.25) +
+    Math.min(previous.sameCBG * 0.20, 0.40) +
+    Math.min(previous.repeats * 0.05, 0.15) +
+    Math.min(exactAmountMatches * 0.10, 0.20);
+
+  const clinicalFactor =
+    clinicalFactors[c.service] ?? 1.00;
+
+  const prior = clamp(
+    graphRaw * clinicalFactor,
+    0.03,
+    0.85
+  );
+
+  // Evidence Expert: assumed likelihood ratios.
+  // Not empirically validated.
+  const ev = state.evidence[c.id] || {};
+
+  const likelihoods = {
+    received: {
+      yes: 0.30,
+      no: 6.00,
+      unknown: 1.00
+    },
+    medicine: {
+      yes: 0.70,
+      no: 2.50,
+      unknown: 1.00,
+      not_applicable: 1.00
+    },
+    docs: {
+      yes: 0.65,
+      no: 2.20,
+      unknown: 1.00,
+      not_applicable: 1.00
+    }
+  };
+
+  let lr = 1;
+  let complete = 0;
+
+  for (const field of Object.keys(likelihoods)) {
+    const value = ev[field] || "unknown";
+    lr *= likelihoods[field][value] ?? 1;
+
+    if (value === "yes" || value === "no") {
+      complete++;
+    }
+  }
+
+  // Bayesian odds update
+  const priorOdds = prior / (1 - prior);
+  const posteriorOdds = priorOdds * lr;
+  const posterior = posteriorOdds / (1 + posteriorOdds);
+
+  const priority = posterior >= 0.60
+    ? "Tinggi"
+    : posterior >= 0.25
+      ? "Telaah"
+      : "Lebih rendah";
+
+  return {
+    ...previous,
+    prior,
+    posterior,
+    lr,
+    complete,
+    priority,
+    exactAmountMatches,
+    clinicalFactor,
+    modelVersion: "Graph Signals v2"
+  };
+};
+
+// Additional evidence option: not applicable
+const saksiOriginalDetail = detail;
+
+detail = function() {
+  let markup = saksiOriginalDetail();
+
+  const ev = state.evidence[selected] || {};
+  const currentCase = state.cases.find(
+    c => c.id === selected
+  );
+
+  markup = markup.replace(
+    "<h2>01 — Graph Expert</h2>",
+    `<h2>01 — Graph Expert v2</h2>
+     <p class="muted">
+       Analisis pola kunjungan, INA-CBG,
+       biaya identik, dan konteks klinis.
+       Skor berbasis aturan demonstrasi.
+     </p>`
+  );
+
+  for (const field of ["medicine", "docs"]) {
+    const selectedNA =
+      ev[field] === "not_applicable" ? "selected" : "";
+
+    const extraOption =
+      `<option value="not_applicable" ${selectedNA}>
+         Tidak berlaku
+       </option>`;
+
+    markup = markup.replace(
+      `<select name="${field}">`,
+      `<select name="${field}">${extraOption}`
+    );
+  }
+
+  if (currentCase) {
+    const r = analyze(currentCase);
+    const description =
+      r.clinicalFactor < 1
+        ? "Konteks pelayanan berulang diterapkan."
+        : "Tidak ada pengurangan berdasarkan kategori layanan.";
+
+    markup = markup.replace(
+      "<h2>02 — Bayesian Risk Update</h2>",
+      `<h2>02 — Bayesian Risk Update</h2>
+       <p class="muted">${description}</p>`
+    );
+  }
+
+  return markup;
+};
+
+// Reproducible, explicitly synthetic scenarios
+const validationScenarios = [
+  {
+    name: "Follow-up berulang pada hari sama",
+    service: "followup",
+    gap: 0,
+    className: "Diasumsikan sah"
+  },
+  {
+    name: "Dialisis dengan selang dua hari",
+    service: "dialysis",
+    gap: 2,
+    className: "Diasumsikan sah"
+  },
+  {
+    name: "Rehabilitasi berulang pada hari sama",
+    service: "rehab",
+    gap: 0,
+    className: "Diasumsikan sah"
+  },
+  {
+    name: "Dua layanan nonrutin yang sah",
+    service: "other",
+    gap: 0,
+    className: "Diasumsikan sah"
+  },
+  {
+    name: "Kunjungan biasa tanpa pengulangan",
+    service: "other",
+    gap: null,
+    className: "Diasumsikan sah"
+  },
+  {
+    name: "Kandidat duplikasi nonrutin",
+    service: "other",
+    gap: 0,
+    className: "Kandidat audit"
+  },
+  {
+    name: "Follow-up dilaporkan tidak diterima",
+    service: "followup",
+    gap: 0,
+    received: "no",
+    className: "Kandidat audit"
+  }
+];
+
+function runValidationScenario(spec) {
+  const savedCases = state.cases;
+  const savedEvidence = state.evidence;
+
+  const codes = {
+    followup: ["Z09.8", "A-1"],
+    dialysis: ["Z49.1", "R-6"],
+    rehab: ["Z50.1", "Q-2"],
+    other: ["J18.9", "D-4"]
+  };
+
+  const [dx, cbg] = codes[spec.service];
+
+  const first = {
+    id: "VALIDATION-A",
+    participant: "SIM-VALIDATION",
+    date: "2020-06-10",
+    dx,
+    cbg,
+    service: spec.service,
+    amount: 850000
+  };
+
+  const nextDate = new Date(
+    Date.UTC(2020, 5, 10 + (spec.gap ?? 0))
+  ).toISOString().slice(0, 10);
+
+  const second = {
+    ...first,
+    id: "VALIDATION-B",
+    date: nextDate,
+    participant: spec.gap === null
+      ? "SIM-OTHER"
+      : "SIM-VALIDATION"
+  };
+
+  try {
+    state.cases = [first, second];
+
+    state.evidence = spec.received
+      ? {
+          "VALIDATION-A": {
+            received: spec.received
+          }
+        }
+      : {};
+
+    const oldResult = saksiV1Analyze(first);
+    const newResult = analyze(first);
+
+    return {
+      ...spec,
+      v1: oldResult.prior,
+      v2: newResult.prior,
+      updated: newResult.posterior
+    };
+  } finally {
+    state.cases = savedCases;
+    state.evidence = savedEvidence;
+  }
+}
+
+function validationView() {
+  const results = validationScenarios.map(
+    runValidationScenario
+  );
+
+  const legitimate = results.filter(
+    x => x.className === "Diasumsikan sah"
+  );
+
+  const flagged = (items, key) =>
+    items.filter(x => x[key] >= 0.25).length;
+
+  const oldFalseAlerts = flagged(legitimate, "v1");
+  const newFalseAlerts = flagged(legitimate, "v2");
+
+  const tableRows = results.map(x => `
+    <tr>
+      <td>${escapeHTML(x.name)}</td>
+      <td>${escapeHTML(x.className)}</td>
+      <td>${pct(x.v1)}</td>
+      <td><b>${pct(x.v2)}</b></td>
+      <td>${pct(x.updated)}</td>
+    </tr>
+  `).join("");
+
+  return `
+    <div class="grid">
+      <div class="card">
+        <div class="kpi-label">
+          Skenario validasi sintetis
+        </div>
+        <div class="kpi">${results.length}</div>
+      </div>
+
+      <div class="card">
+        <div class="kpi-label">
+          Alert pada kasus diasumsikan sah — v1
+        </div>
+        <div class="kpi">${oldFalseAlerts}</div>
+      </div>
+
+      <div class="card">
+        <div class="kpi-label">
+          Alert pada kasus diasumsikan sah — v2
+        </div>
+        <div class="kpi">${newFalseAlerts}</div>
+      </div>
+
+      <div class="card">
+        <div class="kpi-label">
+          Ambang kandidat telaah
+        </div>
+        <div class="kpi">25%</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Perbandingan Graph Expert v1 dan v2</h2>
+      <p class="muted">
+        Pengujian otomatis atas skenario yang
+        dirancang sebelumnya. Label hanya asumsi
+        untuk demonstrasi.
+      </p>
+
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Skenario</th>
+              <th>Asumsi</th>
+              <th>v1</th>
+              <th>v2</th>
+              <th>v2 + Bukti</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Interpretasi dan Keterbatasan</h2>
+
+      <p>
+        <b>Perbaikan:</b> pemberian konteks klinis
+        dapat menurunkan prioritas beberapa pola
+        pengobatan berulang.
+      </p>
+
+      <p>
+        <b>Risiko yang tersisa:</b> kunjungan
+        nonrutin yang sebenarnya sah masih dapat
+        masuk antrean audit.
+      </p>
+
+      <p>
+        <b>Trade-off:</b> penurunan skor pada
+        layanan rutin juga berpotensi menunda
+        pemeriksaan kasus bermasalah yang
+        menyerupai layanan rutin.
+      </p>
+
+      <div class="note">
+        Hasil ini bukan sensitivitas, spesifisitas,
+        akurasi, atau false-positive rate
+        pada data BPJS nyata. Dataset FKRTL
+        yang digunakan belum menyediakan
+        label fraud terverifikasi.
+        Bobot dan likelihood ratio masih asumsi.
+      </div>
+    </div>
+  `;
+}
+
+// Add one navigation item without changing the
+// existing HTML structure
+if (!document.getElementById("nav-validation")) {
+  document.getElementById("nav-about")
+    .insertAdjacentHTML(
+      "beforebegin",
+      `<button id="nav-validation"
+        onclick="navigate('validation')">
+        Validation Studio
+      </button>`
+    );
+}
+
+// Keep all existing routes and add validation route
+const saksiOriginalRender = render;
+
+render = function() {
+  if (view !== "validation") {
+    saksiOriginalRender();
+    return;
+  }
+
+  $("heading").textContent = "Validation Studio";
+  $("subheading").textContent =
+    "Uji transparan pola pengulangan klinis";
+
+  document.querySelectorAll("nav button")
+    .forEach(button => button.classList.remove("active"));
+
+  $("nav-validation").classList.add("active");
+  $("content").innerHTML = validationView();
+};
+
+/* END SAKSI-JKN V2 */
+
 render();
 </script>
 </body>
