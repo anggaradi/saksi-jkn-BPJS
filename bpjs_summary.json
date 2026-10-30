@@ -1,0 +1,22 @@
+
+{
+  "source": "Audit lokal Data Sampel Reguler BPJS Kesehatan 2015-2020",
+  "dataset": "2019202003_fkrtl.dta",
+  "analysis_period": "2019-2020, dengan episode masuk 2018",
+  "total_observations": 1762637,
+  "duplicate_visit_ids": 0,
+  "same_day_diagnosis_groups": 892,
+  "same_day_cbg_groups": 203,
+  "visit_years": {
+    "2018": 1012,
+    "2019": 975202,
+    "2020": 786423
+  },
+  "cross_year_discharges": {
+    "2019": 1011,
+    "2020": 1
+  },
+  "fraud_labels_available": false,
+  "analysis_type": "Descriptive administrative pattern analysis",
+  "interpretation": "Kelompok pengulangan adalah kandidat telaah administratif, bukan fraud yang terkonfirmasi."
+}
