@@ -1616,6 +1616,53 @@ render = function() {
 
 /* END SAKSI-JKN ML V3 */
 
+/* Load BPJS aggregate findings from GitHub deployment */
+async function loadBPJSSummary() {
+  try {
+    const response = await fetch(
+      "./bpjs_summary.json",
+      { cache: "no-store" }
+    );
+
+    if (!response.ok) {
+      console.warn("BPJS summary unavailable");
+      return;
+    }
+
+    const summary = await response.json();
+
+    const required = [
+      "total_observations",
+      "duplicate_visit_ids",
+      "same_day_diagnosis_groups",
+      "same_day_cbg_groups"
+    ];
+
+    if (!required.every(key =>
+      Number.isFinite(summary[key]) &&
+      summary[key] >= 0
+    )) {
+      throw new Error("Invalid BPJS summary");
+    }
+
+    state.summary = {
+      ...state.summary,
+      ...summary
+    };
+
+    save();
+    render();
+
+  } catch (error) {
+    console.warn(
+      "BPJS aggregate data could not be loaded:",
+      error
+    );
+  }
+}
+
+loadBPJSSummary();
+
 render();
 </script>
 </body>
