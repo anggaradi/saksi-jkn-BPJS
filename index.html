@@ -859,9 +859,9 @@ detail = function() {
   if (currentCase) {
     const r = analyze(currentCase);
     const description =
-      r.clinicalFactor < 1
-        ? "Konteks pelayanan berulang diterapkan."
-        : "Tidak ada pengurangan berdasarkan kategori layanan.";
+       r.guardrail && r.guardrail !== "None"
+        ? "Guardrail konteks pelayanan diterapkan."
+        : "Tidak ada guardrail konteks yang diterapkan.";
 
     markup = markup.replace(
       "<h2>02 — Bayesian Risk Update</h2>",
@@ -968,7 +968,7 @@ function runValidationScenario(spec) {
       : {};
 
     const oldResult = saksiV1Analyze(first);
-    const newResult = analyze(first);
+    const newResult = saksiAnalyzeBeforeML(first);
 
     return {
       ...spec,
